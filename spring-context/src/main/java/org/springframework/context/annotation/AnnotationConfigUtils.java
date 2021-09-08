@@ -147,8 +147,7 @@ public abstract class AnnotationConfigUtils {
 	 * @return a Set of BeanDefinitionHolders, containing all bean definitions
 	 * that have actually been registered by this call
 	 */
-	public static Set<BeanDefinitionHolder> registerAnnotationConfigProcessors(
-			BeanDefinitionRegistry registry, @Nullable Object source) {
+	public static Set<BeanDefinitionHolder> registerAnnotationConfigProcessors(BeanDefinitionRegistry registry, @Nullable Object source) {
 
 		// 通过BeanDefinitionRegistry展开DefaultListableBeanFactory
 		DefaultListableBeanFactory beanFactory = unwrapDefaultListableBeanFactory(registry);
@@ -199,12 +198,13 @@ public abstract class AnnotationConfigUtils {
 			beanDefs.add(registerPostProcessor(registry, def, PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME));
 		}
 
+		// 创建事务监听后置处理器EventListenerProcessor
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(EventListenerMethodProcessor.class);
 			def.setSource(source);
 			beanDefs.add(registerPostProcessor(registry, def, EVENT_LISTENER_PROCESSOR_BEAN_NAME));
 		}
-
+		// 创建EventListenerFactory事件监听工厂
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_FACTORY_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(DefaultEventListenerFactory.class);
 			def.setSource(source);
@@ -224,9 +224,7 @@ public abstract class AnnotationConfigUtils {
 	 * @param beanName
 	 * @return:
 	 **/
-	private static BeanDefinitionHolder registerPostProcessor(
-			BeanDefinitionRegistry registry, RootBeanDefinition definition, String beanName) {
-
+	private static BeanDefinitionHolder registerPostProcessor(BeanDefinitionRegistry registry, RootBeanDefinition definition, String beanName) {
 		definition.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
 		// BeanDefinitionRegistry有一个key=beanName, value=bd的map
 		registry.registerBeanDefinition(beanName, definition);

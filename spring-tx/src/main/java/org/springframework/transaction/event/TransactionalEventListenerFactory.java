@@ -50,6 +50,16 @@ public class TransactionalEventListenerFactory implements EventListenerFactory, 
 		return AnnotatedElementUtils.hasAnnotation(method, TransactionalEventListener.class);
 	}
 
+	/**
+	 * 创建ApplicationListenerMethodTransactionalAdapter对象
+	 *
+	 * @Author: xiaocainiaoya
+	 * @Date: 2021/09/08 09:49:54
+	 * @param beanName
+	 * @param type
+	 * @param method
+	 * @return:
+	 **/
 	@Override
 	public ApplicationListener<?> createApplicationListener(String beanName, Class<?> type, Method method) {
 		return new ApplicationListenerMethodTransactionalAdapter(beanName, type, method);

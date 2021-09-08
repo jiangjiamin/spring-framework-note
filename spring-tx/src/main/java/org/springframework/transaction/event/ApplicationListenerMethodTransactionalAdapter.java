@@ -28,6 +28,10 @@ import org.springframework.transaction.support.TransactionSynchronizationAdapter
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
+ *
+ * 继承于ApplicationListenerMethodAdapter, ApplicationListenerMethodAdapter是用来处理@EventListener
+ * 所以本类在ApplicationListenerMethodAdapter所有能力的基础上扩展了事务能力。
+ *
  * {@link GenericApplicationListener} adapter that delegates the processing of
  * an event to a {@link TransactionalEventListener} annotated method. Supports
  * the exact same features as any regular {@link EventListener} annotated method
@@ -60,18 +64,18 @@ class ApplicationListenerMethodTransactionalAdapter extends ApplicationListenerM
 
 	@Override
 	public void onApplicationEvent(ApplicationEvent event) {
-		if (TransactionSynchronizationManager.isSynchronizationActive() &&
-				TransactionSynchronizationManager.isActualTransactionActive()) {
+		if (TransactionSynchronizationManager.isSynchronizationActive() && TransactionSynchronizationManager.isActualTransactionActive()) {
+			// publish事件时: 创建一个TransactionSynchronization对象, 这个对象持有event
+			// 创建TransactionSynchronizationEventAdapter
 			TransactionSynchronization transactionSynchronization = createTransactionSynchronization(event);
+			// 注册到事务管理器中
 			TransactionSynchronizationManager.registerSynchronization(transactionSynchronization);
-		}
-		else if (this.annotation.fallbackExecution()) {
+		}else if (this.annotation.fallbackExecution()) {
 			if (this.annotation.phase() == TransactionPhase.AFTER_ROLLBACK && logger.isWarnEnabled()) {
 				logger.warn("Processing " + event + " as a fallback execution on AFTER_ROLLBACK phase");
 			}
 			processEvent(event);
-		}
-		else {
+		}else {
 			// No transactional event execution at all
 			if (logger.isDebugEnabled()) {
 				logger.debug("No transaction is active - skipping " + event);
@@ -90,11 +94,12 @@ class ApplicationListenerMethodTransactionalAdapter extends ApplicationListenerM
 
 		private final ApplicationEvent event;
 
+		/**
+		 * 在事件的  前、后、或者无视事件  执行的类型
+		 */
 		private final TransactionPhase phase;
 
-		public TransactionSynchronizationEventAdapter(ApplicationListenerMethodAdapter listener,
-				ApplicationEvent event, TransactionPhase phase) {
-
+		public TransactionSynchronizationEventAdapter(ApplicationListenerMethodAdapter listener, ApplicationEvent event, TransactionPhase phase) {
 			this.listener = listener;
 			this.event = event;
 			this.phase = phase;

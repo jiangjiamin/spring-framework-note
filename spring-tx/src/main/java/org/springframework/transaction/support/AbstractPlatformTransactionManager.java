@@ -780,8 +780,7 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 			// propagated to callers but the transaction still considered as committed.
 			try {
 				triggerAfterCommit(status);
-			}
-			finally {
+			}finally {
 				triggerAfterCompletion(status, TransactionSynchronization.STATUS_COMMITTED);
 			}
 
@@ -947,12 +946,15 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	}
 
 	/**
+	 * 触发事务提交之后的后置处理
+	 *
 	 * Trigger {@code afterCompletion} callbacks.
 	 * @param status object representing the transaction
 	 * @param completionStatus completion status according to TransactionSynchronization constants
 	 */
 	private void triggerAfterCompletion(DefaultTransactionStatus status, int completionStatus) {
 		if (status.isNewSynchronization()) {
+			// 获取需要进行后置处理的列表
 			List<TransactionSynchronization> synchronizations = TransactionSynchronizationManager.getSynchronizations();
 			TransactionSynchronizationManager.clearSynchronization();
 			if (!status.hasTransaction() || status.isNewTransaction()) {
@@ -977,8 +979,8 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 * given Spring TransactionSynchronization objects.
 	 * <p>To be called by this abstract manager itself, or by special implementations
 	 * of the {@code registerAfterCompletionWithExistingTransaction} callback.
-	 * @param synchronizations a List of TransactionSynchronization objects
-	 * @param completionStatus the completion status according to the
+	 * @param synchronizations a List of TransactionSynchronization objects 事务提交后需要处理的列表
+	 * @param completionStatus the completion status according to the 事务执行结果的状态
 	 * constants in the TransactionSynchronization interface
 	 * @see #registerAfterCompletionWithExistingTransaction(Object, java.util.List)
 	 * @see TransactionSynchronization#STATUS_COMMITTED

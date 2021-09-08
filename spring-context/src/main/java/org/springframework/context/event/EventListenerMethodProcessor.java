@@ -50,6 +50,9 @@ import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
 
 /**
+ * 实现了BeanFactoryPostProcessor的后置处理方法
+ * 实现了SmartInitializingSingleton的afterSingletonsInstantiated() bean初始化完成之后的后置方法
+ *
  * Registers {@link EventListener} methods as individual {@link ApplicationListener} instances.
  * Implements {@link BeanFactoryPostProcessor} (as of 5.1) primarily for early retrieval,
  * avoiding AOP checks for this processor bean and its {@link EventListenerFactory} delegates.
@@ -60,8 +63,7 @@ import org.springframework.util.CollectionUtils;
  * @see EventListenerFactory
  * @see DefaultEventListenerFactory
  */
-public class EventListenerMethodProcessor
-		implements SmartInitializingSingleton, ApplicationContextAware, BeanFactoryPostProcessor {
+public class EventListenerMethodProcessor implements SmartInitializingSingleton, ApplicationContextAware, BeanFactoryPostProcessor {
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
@@ -76,13 +78,15 @@ public class EventListenerMethodProcessor
 
 	private final EventExpressionEvaluator evaluator = new EventExpressionEvaluator();
 
+	/**
+	 * 没有EventListener标记注解的类
+	 */
 	private final Set<Class<?>> nonAnnotatedClasses = Collections.newSetFromMap(new ConcurrentHashMap<>(64));
 
 
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) {
-		Assert.isTrue(applicationContext instanceof ConfigurableApplicationContext,
-				"ApplicationContext does not implement ConfigurableApplicationContext");
+		Assert.isTrue(applicationContext instanceof ConfigurableApplicationContext, "ApplicationContext does not implement ConfigurableApplicationContext");
 		this.applicationContext = (ConfigurableApplicationContext) applicationContext;
 	}
 
@@ -96,7 +100,14 @@ public class EventListenerMethodProcessor
 		this.eventListenerFactories = factories;
 	}
 
-
+	/**
+	 * 实现了SmartInitializingSingleton的afterSingletonsInstantiated() bean初始化完成之后的后置方法
+	 *
+	 * @Author: xiaocainiaoya
+	 * @Date: 2021/09/08 10:25:40
+	 * @param
+	 * @return:
+	 **/
 	@Override
 	public void afterSingletonsInstantiated() {
 		ConfigurableListableBeanFactory beanFactory = this.beanFactory;
@@ -107,8 +118,7 @@ public class EventListenerMethodProcessor
 				Class<?> type = null;
 				try {
 					type = AutoProxyUtils.determineTargetClass(beanFactory, beanName);
-				}
-				catch (Throwable ex) {
+				} catch (Throwable ex) {
 					// An unresolvable bean type, probably from a lazy bean - let's ignore it.
 					if (logger.isDebugEnabled()) {
 						logger.debug("Could not resolve target class for bean with name '" + beanName + "'", ex);
@@ -117,13 +127,11 @@ public class EventListenerMethodProcessor
 				if (type != null) {
 					if (ScopedObject.class.isAssignableFrom(type)) {
 						try {
-							Class<?> targetClass = AutoProxyUtils.determineTargetClass(
-									beanFactory, ScopedProxyUtils.getTargetBeanName(beanName));
+							Class<?> targetClass = AutoProxyUtils.determineTargetClass(beanFactory, ScopedProxyUtils.getTargetBeanName(beanName));
 							if (targetClass != null) {
 								type = targetClass;
 							}
-						}
-						catch (Throwable ex) {
+						}catch (Throwable ex) {
 							// An invalid scoped proxy arrangement - let's ignore it.
 							if (logger.isDebugEnabled()) {
 								logger.debug("Could not resolve target bean for scoped proxy '" + beanName + "'", ex);
@@ -132,8 +140,7 @@ public class EventListenerMethodProcessor
 					}
 					try {
 						processBean(beanName, type);
-					}
-					catch (Throwable ex) {
+					}catch (Throwable ex) {
 						throw new BeanInitializationException("Failed to process @EventListener " +
 								"annotation on bean with name '" + beanName + "'", ex);
 					}
@@ -143,17 +150,15 @@ public class EventListenerMethodProcessor
 	}
 
 	private void processBean(final String beanName, final Class<?> targetType) {
-		if (!this.nonAnnotatedClasses.contains(targetType) &&
-				AnnotationUtils.isCandidateClass(targetType, EventListener.class) &&
-				!isSpringContainerClass(targetType)) {
-
+		if (!this.nonAnnotatedClasses.contains(targetType) && AnnotationUtils.isCandidateClass(targetType, EventListener.class) && !isSpringContainerClass(targetType)) {
 			Map<Method, EventListener> annotatedMethods = null;
 			try {
+				// 从bean的class对象中找出含有@EventListener注解的方法, 存在Map<Method, EventListener>中
+				// @TransactionListener方法也会被匹配, 因为它的元注解是@EventListener
 				annotatedMethods = MethodIntrospector.selectMethods(targetType,
 						(MethodIntrospector.MetadataLookup<EventListener>) method ->
 								AnnotatedElementUtils.findMergedAnnotation(method, EventListener.class));
-			}
-			catch (Throwable ex) {
+			}catch (Throwable ex) {
 				// An unresolvable type in a method signature, probably from a lazy bean - let's ignore it.
 				if (logger.isDebugEnabled()) {
 					logger.debug("Could not resolve methods for bean with name '" + beanName + "'", ex);
@@ -165,19 +170,20 @@ public class EventListenerMethodProcessor
 				if (logger.isTraceEnabled()) {
 					logger.trace("No @EventListener annotations found on bean class: " + targetType.getName());
 				}
-			}
-			else {
+			}else {
 				// Non-empty set of methods
 				ConfigurableApplicationContext context = this.applicationContext;
 				Assert.state(context != null, "No ApplicationContext set");
 				List<EventListenerFactory> factories = this.eventListenerFactories;
 				Assert.state(factories != null, "EventListenerFactory List not initialized");
 				for (Method method : annotatedMethods.keySet()) {
+					// 获取监听工厂, 这里有两个工厂:DefaultEventListenerFactory和TransactionalEventListenerFactory
 					for (EventListenerFactory factory : factories) {
+						// 判断这个被标记的方法适配哪个工厂
 						if (factory.supportsMethod(method)) {
 							Method methodToUse = AopUtils.selectInvocableMethod(method, context.getType(beanName));
-							ApplicationListener<?> applicationListener =
-									factory.createApplicationListener(beanName, targetType, methodToUse);
+							// 使用工厂创建对应的监听器对象
+							ApplicationListener<?> applicationListener = factory.createApplicationListener(beanName, targetType, methodToUse);
 							if (applicationListener instanceof ApplicationListenerMethodAdapter) {
 								((ApplicationListenerMethodAdapter) applicationListener).init(context, this.evaluator);
 							}
@@ -187,8 +193,7 @@ public class EventListenerMethodProcessor
 					}
 				}
 				if (logger.isDebugEnabled()) {
-					logger.debug(annotatedMethods.size() + " @EventListener methods processed on bean '" +
-							beanName + "': " + annotatedMethods);
+					logger.debug(annotatedMethods.size() + " @EventListener methods processed on bean '" + beanName + "': " + annotatedMethods);
 				}
 			}
 		}

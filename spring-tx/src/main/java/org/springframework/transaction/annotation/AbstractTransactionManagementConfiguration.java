@@ -76,7 +76,14 @@ public abstract class AbstractTransactionManagementConfiguration implements Impo
 		this.txManager = configurer.annotationDrivenTransactionManager();
 	}
 
-
+	/**
+	 * 创建事务型事件监听工厂
+	 *
+	 * @Author: xiaocainiaoya
+	 * @Date: 2021/09/08 09:51:30
+	 * @param
+	 * @return:
+	 **/
 	@Bean(name = TransactionManagementConfigUtils.TRANSACTIONAL_EVENT_LISTENER_FACTORY_BEAN_NAME)
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	public static TransactionalEventListenerFactory transactionalEventListenerFactory() {
